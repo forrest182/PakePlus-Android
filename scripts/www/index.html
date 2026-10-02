@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="健身营养摄入记录：热量、蛋白质、碳水、脂肪每日追踪，纯本地离线使用">
+<title>健身营养记录</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2322C55E'/%3E%3Cpath d='M8 12v8M24 12v8M11 13v6M21 13v6M14 10v12M18 10v12' stroke='%23081414' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+/* ============================================================
+   设计令牌
+   ============================================================ */
+:root{
+  --bg:        #14161B;   /* 页面深灰背景 */
+  --bg-soft:   #191C22;   /* 次级背景 */
+  --card:      #1E222A;   /* 卡片背景 */
+  --card-2:    #242933;   /* 卡片内嵌区 */
+  --line:      #2B313C;   /* 边框线 */
+  --line-soft: #232833;   /* 更浅边框 */
+  --text:      #EDEFF3;   /* 主文字 */
+  --text-2:    #A7AEB9;   /* 次级文字 */
+  --text-3:    #6B7280;   /* 弱化文字 */
+  --green:     #22C55E;   /* 主色：绿 */
+  --green-3:   #86EFAC;   /* 绿色浅色文字 */
+  --green-deep:#14532D;   /* 绿色深底 */
+  --orange:    #F97316;   /* 强调色：橙 */
+  --orange-3:  #FDBA74;   /* 橙色浅色文字 */
+  --blue:      #38BDF8;   /* 碳水进度 */
+  --gold:      #FBBF24;   /* 脂肪进度 */
+  --red:       #EF4444;   /* 超限警示 */
+  --red-3:     #FCA5A5;
+  --radius:    14px;
+  --radius-s:  10px;
+  --mono: "SF Mono", "Cascadia Mono", Consolas, "JetBrains Mono", monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+}
+
+/* ============================================================
+   基础
+   ============================================================ */
+*{ margin:0; padding:0; box-sizing:border-box; }
+[hidden]{ display:none !important; }
+html{ -webkit-text-size-adjust:100%; }
+body{
+  font-family:var(--sans);
+  background:
+    radial-gradient(1200px 500px at 85% -10%, rgba(34,197,94,.07), transparent 60%),
+    radial-gradient(900px 420px at -10% 15%, rgba(249,115,22,.05), transparent 55%),
+    var(--bg);
+  color:var(--text);
+  line-height:1.55;
+  min-height:100vh;
+}
+button{ font-family:inherit; cursor:pointer; }
+input, textarea{ font-family:inherit; }
+::selection{ background:rgba(34,197,94,.35); }
+
+/* ============================================================
+   顶栏
+   ============================================================ */
+.topbar{
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  flex-wrap:wrap;
+  padding:18px clamp(16px, 4vw, 40px);
+  border-bottom:1px solid var(--line);
+  background:rgba(20,22,27,.75);
+  backdrop-filter:blur(6px);
+  position:sticky; top:0; z-index:30;
+}
+.brand{ display:flex; align-items:center; gap:12px; }
+.brand .logo{
+  width:42px; height:42px; border-radius:12px;
+  background:linear-gradient(135deg, var(--green), #16A34A);
+  display:grid; place-items:center; flex:none;
+  box-shadow:0 4px 16px rgba(34,197,94,.25);
+}
+.brand .logo svg{ width:24px; height:24px; }
+.brand h1{ font-size:19px; font-weight:800; letter-spacing:.2px; }
+.brand .sub{ font-size:12px; color:var(--text-2); margin-top:1px; }
+.brand .sub b{ color:var(--green-3); font-weight:600; }
+
+/* 日期导航 */
+.date-nav{ display:flex; align-items:center; gap:8px; }
+.date-nav button{
+  width:34px; height:34px; border-radius:9px;
+  background:var(--card-2); border:1px solid var(--line); color:var(--text);
+  font-size:16px; line-height:1; display:grid; place-items:center;
+  transition:border-color .15s, background .15s;
+}
+.date-nav button:hover{ border-color:var(--green); color:var(--green-3); }
+.date-nav input[type="date"]{
+  background:var(--card-2); border:1px solid var(--line); color:var(--text);
+  border-radius:9px; padding:6px 10px; font-size:14px; height:34px;
+  color-scheme:dark;
+}
+.date-nav input[type="date"]:focus{ outline:none; border-color:var(--green); }
+.date-nav .weekday{ font-size:13px; color:var(--text-2); min-width:42px; text-align:center; }
+#todayBtn{
+  height:34px; padding:0 12px; border-radius:9px; font-size:13px;
+  background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.4); color:var(--green-3);
+}
+#todayBtn:hover{ background:rgba(34,197,94,.2); }
+
+/* 顶栏操作 */
+.top-actions{ display:flex; gap:8px; }
+.btn-ghost{
+  height:34px; padding:0 12px; border-radius:9px; font-size:13px;
+  background:var(--card-2); border:1px solid var(--line); color:var(--text-2);
+  transition:border-color .15s, color .15s;
+}
+.btn-ghost:hover{ border-color:var(--orange); color:var(--orange-3); }
+
+/* ============================================================
+   主体网格
+   ============================================================ */
+main{
+  max-width:1200px; margin:0 auto;
+  padding:24px clamp(16px, 4vw, 40px) 60px;
+  display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px;
+}
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:20px;
+}
+.card h2{
+  font-size:15px; font-weight:700; letter-spacing:.3px;
+  display:flex; align-items:center; gap:8px;
+  padding-bottom:14px; margin-bottom:16px;
+  border-bottom:1px solid var(--line-soft);
+}
+.card h2 svg{ width:17px; height:17px; color:var(--green); flex:none; }
+.card h2 .hint{ margin-left:auto; font-size:12px; font-weight:400; color:var(--text-3); }
+
+/* ============================================================
+   区块一：目标设置
+   ============================================================ */
+.goal-grid{
+  display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;
+}
+.field label{
+  display:block; font-size:12.5px; color:var(--text-2); margin-bottom:5px;
+}
+.field .input-wrap{ position:relative; }
+.field .input-wrap input{
+  width:100%; height:40px; padding:0 42px 0 12px;
+  background:var(--bg-soft); border:1px solid var(--line); border-radius:var(--radius-s);
+  color:var(--text); font-size:15px; font-variant-numeric:tabular-nums;
+  transition:border-color .15s;
+}
+.field .input-wrap input:focus{ outline:none; border-color:var(--green); }
+.field .input-wrap .unit{
+  position:absolute; right:11px; top:50%; transform:translateY(-50%);
+  font-size:11.5px; color:var(--text-3); pointer-events:none;
+}
+.btn-primary{
+  width:100%; height:42px; border:none; border-radius:var(--radius-s);
+  background:var(--green); color:#08110A;
+  font-size:14.5px; font-weight:700; letter-spacing:.5px;
+  transition:filter .15s, transform .05s;
+}
+.btn-primary:hover{ filter:brightness(1.1); }
+.btn-primary:active{ transform:scale(.99); }
+#goalSaveBtn{ margin-top:14px; }
+
+/* 进度条区 */
+.progress-area{ display:flex; flex-direction:column; gap:14px; }
+.prog-item .prog-head{
+  display:flex; align-items:baseline; gap:8px; margin-bottom:6px; font-size:13px;
+}
+.prog-item .prog-head .p-name{ color:var(--text-2); font-weight:600; }
+.prog-item .prog-head .p-val{
+  margin-left:auto; font-family:var(--mono); font-size:13px;
+  font-variant-numeric:tabular-nums;
+}
+.prog-item .prog-head .p-val b{ color:var(--text); font-weight:700; }
+.prog-item .prog-head .p-goal{ color:var(--text-3); }
+.prog-item .p-muted{ margin-left:auto; font-size:12px; color:var(--text-3); }
+.bar{
+  height:9px; border-radius:99px; background:#0F1115; overflow:hidden;
+  border:1px solid var(--line-soft);
+}
+.bar i{
+  display:block; height:100%; border-radius:99px; width:0;
+  transition:width .35s cubic-bezier(.2,.7,.3,1);
+}
+.bar.over i{ background:var(--red); }
+.prog-foot{ font-size:11.5px; color:var(--text-3); margin-top:3px; min-height:15px; }
+.prog-foot b{ font-weight:600; }
+.prog-foot .ok{ color:var(--green-3); }
+.prog-foot .over{ color:var(--red-3); }
+
+/* ============================================================
+   区块二：添加食物 + 快捷预设
+   ============================================================ */
+.form-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.form-row .span2{ grid-column:1 / -1; }
+.form-row .amt{ grid-template-columns:1fr; }
+#foodForm .field{ margin-bottom:12px; }
+.form-actions{ display:flex; gap:10px; }
+.form-actions .btn-primary{ flex:1; }
+#cancelEditBtn{
+  height:42px; padding:0 16px; border-radius:var(--radius-s);
+  background:transparent; border:1px solid var(--line); color:var(--text-2); font-size:14px;
+  display:none;
+}
+#cancelEditBtn:hover{ border-color:var(--red); color:var(--red-3); }
+
+/* 快捷预设 */
+.preset-head{
+  display:flex; align-items:center; margin:20px 0 12px;
+}
+.preset-head h3{ font-size:13px; font-weight:700; color:var(--text-2); }
+.preset-head .add-preset-btn{
+  margin-left:auto; font-size:12.5px; height:30px; padding:0 12px; border-radius:8px;
+  background:transparent; border:1px dashed var(--line); color:var(--text-2);
+}
+.preset-head .add-preset-btn:hover{ border-color:var(--green); color:var(--green-3); }
+.preset-grid{
+  display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;
+}
+.preset-item{
+  position:relative; text-align:left;
+  background:var(--card-2); border:1px solid var(--line); border-radius:var(--radius-s);
+  padding:9px 10px; transition:border-color .15s, transform .05s, background .15s;
+}
+.preset-item:hover{ border-color:var(--green); background:#272D38; }
+.preset-item:active{ transform:scale(.97); }
+.preset-item .p-name{ font-size:13px; font-weight:600; display:block; }
+.preset-item .p-meta{ font-size:10.5px; color:var(--text-3); display:block; margin-top:2px; }
+.preset-item .p-del{
+  position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%;
+  background:#3A4150; border:1px solid var(--line); color:var(--text-2);
+  font-size:11px; line-height:1; display:none; place-items:center;
+}
+.preset-item:hover .p-del{ display:grid; }
+.preset-item .p-del:hover{ background:var(--red); color:#fff; border-color:var(--red); }
+
+/* 新增预设内联表单 */
+.inline-preset{
+  display:none; margin-top:10px; padding:12px; border:1px solid var(--line);
+  border-radius:var(--radius-s); background:var(--bg-soft);
+}
+.inline-preset.show{ display:block; }
+.inline-preset .mini-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.inline-preset .mini-grid .span2{ grid-column:1 / -1; }
+.inline-preset .mini-grid .mini-row{ grid-column:1 / -1; display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; }
+.inline-preset label{ display:block; font-size:11.5px; color:var(--text-2); margin-bottom:4px; }
+.inline-preset input{
+  width:100%; height:34px; padding:0 9px; background:var(--card);
+  border:1px solid var(--line); border-radius:8px; color:var(--text); font-size:13px;
+  font-variant-numeric:tabular-nums;
+}
+.inline-preset input:focus{ outline:none; border-color:var(--green); }
+.inline-preset .mini-actions{ display:flex; gap:8px; margin-top:10px; }
+.inline-preset .mini-actions button{
+  flex:1; height:34px; border-radius:8px; font-size:13px; font-weight:600;
+}
+.inline-preset .mini-actions .ok{ background:var(--green); border:none; color:#08110A; }
+.inline-preset .mini-actions .cancel{ background:transparent; border:1px solid var(--line); color:var(--text-2); }
+
+/* ============================================================
+   区块三：当日记录 + 汇总（全宽）
+   ============================================================ */
+.record-card{ grid-column:1 / -1; }
+
+/* 汇总卡片 */
+.summary-grid{
+  display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; margin-bottom:14px;
+}
+.sum-box{
+  background:var(--bg-soft); border:1px solid var(--line-soft); border-radius:var(--radius-s);
+  padding:12px 14px;
+}
+.sum-box .s-head{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-2); }
+.sum-box .s-head svg{ width:14px; height:14px; }
+.sum-box .s-val{
+  font-size:22px; font-weight:800; font-family:var(--mono);
+  font-variant-numeric:tabular-nums; margin-top:4px; letter-spacing:-.3px;
+}
+.sum-box .s-val small{ font-size:12px; color:var(--text-3); font-weight:400; margin-left:2px; }
+.sum-box .s-rest{ font-size:11.5px; margin-top:2px; font-family:var(--mono); font-variant-numeric:tabular-nums; }
+.sum-box .s-rest.ok{ color:var(--green-3); }
+.sum-box .s-rest.over{ color:var(--red-3); }
+.sum-box.cal .s-val{ color:var(--green-3); }
+.sum-box.pro .s-val{ color:var(--orange-3); }
+.sum-box.car .s-val{ color:var(--blue); }
+.sum-box.fat .s-val{ color:var(--gold); }
+
+/* 宏量占比 */
+.macro-split{
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  padding:10px 14px; border:1px dashed var(--line); border-radius:var(--radius-s);
+  margin-bottom:14px; font-size:12.5px;
+}
+.macro-split .m-label{ color:var(--text-3); }
+.macro-split .m-chip{ display:flex; align-items:center; gap:6px; color:var(--text-2); }
+.macro-split .dot{ width:8px; height:8px; border-radius:50%; }
+.macro-split .m-chip b{ font-family:var(--mono); font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; }
+
+/* 训练备注 */
+.note-box{ margin-bottom:16px; }
+.note-box textarea{
+  width:100%; min-height:56px; resize:vertical;
+  background:var(--bg-soft); border:1px solid var(--line); border-radius:var(--radius-s);
+  color:var(--text); font-size:13.5px; padding:10px 12px;
+}
+.note-box textarea:focus{ outline:none; border-color:var(--green); }
+.note-box .note-tip{ font-size:11px; color:var(--text-3); margin-top:4px; }
+
+/* 记录列表 */
+.record-head{
+  display:flex; align-items:center; margin-bottom:10px;
+}
+.record-head h3{ font-size:13px; font-weight:700; color:var(--text-2); }
+.record-head .count{ font-size:12px; color:var(--text-3); margin-left:8px; }
+.record-head .record-actions{ margin-left:auto; display:flex; gap:8px; }
+.btn-danger{
+  height:32px; padding:0 12px; border-radius:8px; font-size:12.5px;
+  background:transparent; border:1px solid rgba(239,68,68,.45); color:var(--red-3);
+}
+.btn-danger:hover{ background:rgba(239,68,68,.12); }
+
+.rec-list{ list-style:none; }
+.rec-row{
+  display:grid;
+  grid-template-columns:minmax(0,1.6fr) minmax(0,.7fr) repeat(4,minmax(0,.9fr)) minmax(0,1fr);
+  gap:10px; align-items:center;
+  padding:11px 14px; border:1px solid var(--line-soft); border-radius:var(--radius-s);
+  background:var(--bg-soft); margin-bottom:8px;
+  transition:border-color .15s;
+}
+.rec-row:hover{ border-color:#39414F; }
+.rec-row .c-name{ font-weight:600; font-size:14px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rec-row .c-name .c-time{ font-size:11px; color:var(--text-3); font-weight:400; margin-left:7px; }
+.rec-row .c-amt{ font-size:12.5px; color:var(--text-2); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.rec-row .c-nut{ font-size:12.5px; font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.rec-row .c-nut b{ font-weight:700; }
+.rec-row .c-nut small{ color:var(--text-3); }
+.rec-row .n-cal b{ color:var(--green-3); }
+.rec-row .n-pro b{ color:var(--orange-3); }
+.rec-row .n-car b{ color:var(--blue); }
+.rec-row .n-fat b{ color:var(--gold); }
+.rec-row .c-ops{ display:flex; gap:6px; justify-content:flex-end; }
+.rec-row .c-ops button{
+  height:28px; padding:0 10px; border-radius:7px; font-size:12px;
+  background:transparent; border:1px solid var(--line); color:var(--text-2);
+  transition:border-color .15s, color .15s;
+}
+.rec-row .c-ops .edit:hover{ border-color:var(--blue); color:var(--blue); }
+.rec-row .c-ops .del:hover{ border-color:var(--red); color:var(--red-3); }
+
+/* 空态 */
+.rec-empty{
+  border:1px dashed var(--line); border-radius:var(--radius-s);
+  padding:34px 16px; text-align:center; color:var(--text-3); font-size:13.5px;
+}
+.rec-empty b{ display:block; font-size:15px; color:var(--text-2); margin-bottom:4px; }
+
+/* 未设置目标提示 */
+.goal-unset{
+  text-align:center; padding:30px 16px; color:var(--text-3); font-size:13.5px;
+  border:1px dashed var(--line); border-radius:var(--radius-s);
+}
+
+/* ============================================================
+   弹窗
+   ============================================================ */
+.modal-mask{
+  position:fixed; inset:0; z-index:100; display:none;
+  background:rgba(8,10,14,.66); backdrop-filter:blur(3px);
+  align-items:center; justify-content:center; padding:20px;
+}
+.modal-mask.show{ display:flex; }
+.modal{
+  width:100%; max-width:380px; background:var(--card);
+  border:1px solid var(--line); border-radius:var(--radius);
+  padding:22px; animation:pop .18s ease;
+}
+@keyframes pop{ from{ transform:scale(.95); opacity:0; } to{ transform:scale(1); opacity:1; } }
+.modal h3{ font-size:16px; font-weight:700; margin-bottom:8px; }
+.modal p{ font-size:13.5px; color:var(--text-2); margin-bottom:18px; }
+.modal .m-actions{ display:flex; gap:10px; justify-content:flex-end; }
+.modal .m-actions button{ height:38px; padding:0 18px; border-radius:9px; font-size:13.5px; font-weight:600; }
+.modal .m-cancel{ background:transparent; border:1px solid var(--line); color:var(--text-2); }
+.modal .m-ok{ background:var(--red); border:none; color:#fff; }
+.modal .m-ok.green{ background:var(--green); color:#08110A; }
+
+/* ============================================================
+   Toast 提示
+   ============================================================ */
+#toast{
+  position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(20px);
+  background:#2A303B; border:1px solid var(--line); color:var(--text);
+  font-size:13.5px; padding:10px 18px; border-radius:99px;
+  opacity:0; pointer-events:none; transition:opacity .25s, transform .25s;
+  z-index:120; box-shadow:0 8px 24px rgba(0,0,0,.35);
+  white-space:nowrap;
+}
+#toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* ============================================================
+   页脚
+   ============================================================ */
+footer{
+  text-align:center; color:var(--text-3); font-size:12px;
+  padding:0 16px 34px;
+}
+footer .dot{ color:var(--green); }
+
+/* ============================================================
+   响应式
+   ============================================================ */
+@media (max-width: 920px){
+  main{ grid-template-columns:1fr; }
+  .record-card{ grid-column:auto; }
+}
+@media (max-width: 600px){
+  /* 输入框 ≥16px，避免 iOS 聚焦时页面自动缩放 */
+  input, textarea{ font-size:16px !important; }
+  .field .input-wrap input{ height:44px; }
+  /* 触控目标加大 */
+  .date-nav button{ width:40px; height:40px; }
+  .btn-primary{ height:46px; }
+  .add-preset-btn{ height:38px; }
+  .btn-danger{ height:38px; }
+  .topbar{ gap:12px; }
+  .top-actions{ width:100%; }
+  .top-actions .btn-ghost{ flex:1; }
+  .date-nav{ order:-1; width:100%; justify-content:space-between; }
+  .date-nav input[type="date"]{ flex:1; }
+  .summary-grid{ grid-template-columns:1fr 1fr; }
+  .goal-grid{ grid-template-columns:1fr 1fr; }
+  .form-row{ grid-template-columns:1fr; }
+  .form-row .span2{ grid-column:auto; }
+  .preset-grid{ grid-template-columns:repeat(2, 1fr); }
+
+  /* 记录行转卡片 */
+  .rec-row{
+    grid-template-columns:1fr 1fr;
+    gap:6px 10px; padding:12px;
+  }
+  .rec-row .c-name{ grid-column:1 / -1; }
+  .rec-row .c-amt{ grid-column:1 / -1; color:var(--text-3); }
+  .rec-row .c-ops{ grid-column:1 / -1; justify-content:flex-start; }
+  .rec-row .c-nut{ position:relative; padding-left:52px; }
+  .rec-row .c-nut::before{
+    content:attr(data-label);
+    position:absolute; left:0; top:0;
+    font-size:11px; color:var(--text-3); font-family:var(--sans);
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== 顶栏 ==================== -->
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#08140B" stroke-width="2.2" stroke-linecap="round">
+        <path d="M5 9v6M19 9v6M8 10v4M16 10v4M10 7.5v9M14 7.5v9"/>
+      </svg>
+    </span>
+    <div>
+      <h1>健身营养记录</h1>
+      <p class="sub">热量 · 蛋白质 · 碳水 · 脂肪 · <b>每日定量摄入</b></p>
+    </div>
+  </div>
+
+  <div class="date-nav">
+    <button id="prevDay" title="前一天" aria-label="前一天">‹</button>
+    <input type="date" id="dateInput" aria-label="选择日期">
+    <span class="weekday" id="weekday"></span>
+    <button id="nextDay" title="后一天" aria-label="后一天">›</button>
+    <button id="todayBtn" hidden>今天</button>
+  </div>
+
+  <div class="top-actions">
+    <button class="btn-ghost" id="exportTxt">导出文本</button>
+    <button class="btn-ghost" id="exportCsv">导出 CSV</button>
+  </div>
+</header>
+
+<!-- ==================== 主体 ==================== -->
+<main>
+
+  <!-- ===== 区块一：目标设置 ===== -->
+  <section class="card goals-card" aria-labelledby="goalsTitle">
+    <h2 id="goalsTitle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+      目标设置
+      <span class="hint">保存后自动计算剩余</span>
+    </h2>
+
+    <form id="goalForm" autocomplete="off">
+      <div class="goal-grid">
+        <div class="field">
+          <label for="goalCal">每日热量目标</label>
+          <div class="input-wrap">
+            <input type="number" id="goalCal" min="0" step="1" inputmode="decimal" placeholder="2000">
+            <span class="unit">kcal</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="goalPro">蛋白质目标</label>
+          <div class="input-wrap">
+            <input type="number" id="goalPro" min="0" step="1" inputmode="decimal" placeholder="150">
+            <span class="unit">g</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="goalCar">碳水目标</label>
+          <div class="input-wrap">
+            <input type="number" id="goalCar" min="0" step="1" inputmode="decimal" placeholder="250">
+            <span class="unit">g</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="goalFat">脂肪目标</label>
+          <div class="input-wrap">
+            <input type="number" id="goalFat" min="0" step="1" inputmode="decimal" placeholder="60">
+            <span class="unit">g</span>
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="btn-primary" id="goalSaveBtn">保存目标</button>
+    </form>
+
+    <!-- 进度条区（JS 渲染） -->
+    <div style="height:16px"></div>
+    <div id="progressArea" aria-live="polite"></div>
+  </section>
+
+  <!-- ===== 区块二：添加食物 + 快捷预设 ===== -->
+  <section class="card add-card" aria-labelledby="addTitle">
+    <h2 id="addTitle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      添加食物
+      <span class="hint" id="editBadge"></span>
+    </h2>
+
+    <form id="foodForm" autocomplete="off">
+      <div class="form-row">
+        <div class="field span2">
+          <label for="fName">食物名称</label>
+          <input type="text" id="fName" maxlength="30" placeholder="如：鸡胸肉">
+        </div>
+        <div class="field">
+          <label for="fAmount">份量</label>
+          <div class="input-wrap">
+            <input type="number" id="fAmount" min="0" step="0.1" inputmode="decimal" placeholder="100">
+            <span class="unit" id="fUnitText">g</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="fUnit">单位</label>
+          <input type="text" id="fUnit" maxlength="8" value="g" style="height:40px;width:100%;padding:0 12px;background:var(--bg-soft);border:1px solid var(--line);border-radius:var(--radius-s);color:var(--text);font-size:14px;">
+        </div>
+        <div class="field">
+          <label for="fCal">热量</label>
+          <div class="input-wrap">
+            <input type="number" id="fCal" min="0" step="0.1" inputmode="decimal" placeholder="0">
+            <span class="unit">kcal</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="fPro">蛋白质</label>
+          <div class="input-wrap">
+            <input type="number" id="fPro" min="0" step="0.1" inputmode="decimal" placeholder="0">
+            <span class="unit">g</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="fCar">碳水</label>
+          <div class="input-wrap">
+            <input type="number" id="fCar" min="0" step="0.1" inputmode="decimal" placeholder="0">
+            <span class="unit">g</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="fFat">脂肪</label>
+          <div class="input-wrap">
+            <input type="number" id="fFat" min="0" step="0.1" inputmode="decimal" placeholder="0">
+            <span class="unit">g</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-primary" id="foodSubmitBtn">添加记录</button>
+        <button type="button" id="cancelEditBtn">取消编辑</button>
+      </div>
+    </form>
+
+    <!-- 快捷预设库 -->
+    <div class="preset-head">
+      <h3>快捷食材库</h3>
+      <button type="button" class="add-preset-btn" id="addPresetBtn">＋ 自定义食材</button>
+    </div>
+    <div class="preset-grid" id="presetGrid"><!-- JS 渲染 --></div>
+
+    <!-- 新增自定义预设（内联表单） -->
+    <div class="inline-preset" id="inlinePreset">
+      <div class="mini-grid">
+        <div class="span2">
+          <label>食材名称</label>
+          <input type="text" id="npName" maxlength="20" placeholder="如：三文鱼">
+        </div>
+        <div>
+          <label>份量</label>
+          <input type="number" id="npAmount" min="0" step="0.1" value="100">
+        </div>
+        <div>
+          <label>单位</label>
+          <input type="text" id="npUnit" maxlength="8" value="g">
+        </div>
+        <div class="mini-row">
+          <div><label>热量 kcal</label><input type="number" id="npCal" min="0" step="0.1"></div>
+          <div><label>蛋白质 g</label><input type="number" id="npPro" min="0" step="0.1"></div>
+          <div><label>碳水 g</label><input type="number" id="npCar" min="0" step="0.1"></div>
+          <div><label>脂肪 g</label><input type="number" id="npFat" min="0" step="0.1"></div>
+        </div>
+      </div>
+      <div class="mini-actions">
+        <button type="button" class="ok" id="npOk">保存到食材库</button>
+        <button type="button" class="cancel" id="npCancel">取消</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 区块三：当日记录 + 汇总（全宽） ===== -->
+  <section class="card record-card" aria-labelledby="recordTitle">
+    <h2 id="recordTitle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>
+      当日记录与汇总
+      <span class="hint" id="dateTitle"></span>
+    </h2>
+
+    <!-- 汇总卡片（JS 渲染） -->
+    <div class="summary-grid" id="summaryGrid"></div>
+
+    <!-- 宏量供能占比 -->
+    <div class="macro-split" id="macroSplit" hidden></div>
+
+    <!-- 训练备注 -->
+    <div class="note-box">
+      <textarea id="noteInput" maxlength="200" placeholder="训练状态备注（如：腿部训练日 / 有氧 40min / 休息日）"></textarea>
+      <div class="note-tip">备注随日期自动保存</div>
+    </div>
+
+    <div class="record-head">
+      <h3>饮食记录</h3>
+      <span class="count" id="recCount"></span>
+      <div class="record-actions">
+        <button class="btn-danger" id="clearDayBtn">清空当日</button>
+      </div>
+    </div>
+    <ul class="rec-list" id="recordList"><!-- JS 渲染 --></ul>
+  </section>
+</main>
+
+<footer>数据仅保存在本机浏览器 · 完全离线可用<span class="dot"> · </span>所有营养数据为录入值，请以食物包装 / 称重为准</footer>
+
+<!-- ==================== 确认弹窗 ==================== -->
+<div class="modal-mask" id="modalMask" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <h3 id="modalTitle">确认</h3>
+    <p id="modalMsg"></p>
+    <div class="m-actions">
+      <button class="m-cancel" id="modalCancel">取消</button>
+      <button class="m-ok" id="modalOk">确定</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ============================================================
+   一、存储层（LocalStorage）
+   ============================================================ */
+const LS_KEY = {
+  goals:   'fit_goals',          // 每日目标
+  records: 'fit_records',        // { 'YYYY-MM-DD': [记录项] }
+  presets: 'fit_custom_presets', // 自定义食材库
+  notes:   'fit_daily_notes'     // { 'YYYY-MM-DD': '训练备注' }
+};
+
+function lsLoad(key, def){
+  try{
+    const raw = localStorage.getItem(key);
+    if(raw === null) return def;
+    return JSON.parse(raw) ?? def;
+  }catch(e){ return def; }
+}
+function lsSave(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+/* ============================================================
+   二、内置食材预设（营养值参考，100g 生重口径，可自行修改）
+   ============================================================ */
+const BUILTIN_PRESETS = [
+  { name:'鸡蛋',     amount:1,   unit:'个', calories:72,  protein:6,   carbs:0.5, fat:5   },
+  { name:'鸡胸肉',   amount:100, unit:'g',  calories:133, protein:24,  carbs:0.5, fat:3.2 },
+  { name:'米饭',     amount:100, unit:'g',  calories:116, protein:2.6, carbs:25.9, fat:0.3 },
+  { name:'燕麦',     amount:100, unit:'g',  calories:377, protein:13,  carbs:66,  fat:7   },
+  { name:'牛肉',     amount:100, unit:'g',  calories:125, protein:20,  carbs:0,   fat:4.5 },
+  { name:'牛奶',     amount:250, unit:'ml', calories:162, protein:8,   carbs:12,  fat:9   },
+  { name:'红薯',     amount:100, unit:'g',  calories:86,  protein:1.6, carbs:20,  fat:0.1 },
+  { name:'西兰花',   amount:100, unit:'g',  calories:34,  protein:2.8, carbs:6.6, fat:0.4 },
+  { name:'酸奶',     amount:100, unit:'g',  calories:59,  protein:10,  carbs:3.6, fat:0.4 }
+];
+
+/* ============================================================
+   三、状态
+   ============================================================ */
+let currentDate  = fmtDate(new Date()); // 当前查看的日期 YYYY-MM-DD
+let editingId    = null;               // 正在编辑的记录 id
+let presetScale  = null;               // 预设份量缩放基准 { amount, base }
+let noteTimer    = null;               // 备注防抖定时器
+const customPresets = lsLoad(LS_KEY.presets, []);
+
+/* ============================================================
+   四、工具函数
+   ============================================================ */
+function pad(n){ return String(n).padStart(2, '0'); }
+/** 本地日期 → YYYY-MM-DD（避免 toISOString 的时区偏移问题） */
+function fmtDate(d){ return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+function todayStr(){ return fmtDate(new Date()); }
+/** 日期字符串 → 星期几中文 */
+function weekdayCN(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  return ['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
+}
+/** 日期字符串 ±n 天，返回 YYYY-MM-DD */
+function shiftDate(dateStr, n){
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return fmtDate(d);
+}
+function fmtTime(d){
+  return pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+/** HTML 转义，防止用户输入被当作标签注入 */
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => (
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+  ));
+}
+/** 数字输入框：只允许数字与小数点 */
+function numOnly(el){
+  el.addEventListener('input', () => {
+    const v = el.value.replace(/[^\d.]/g, '');
+    if(v !== el.value) el.value = v;
+  });
+}
+function round2(n){ return Math.round(n * 100) / 100; }
+
+/* ============================================================
+   五、数据读写
+   ============================================================ */
+function getGoals(){
+  return lsLoad(LS_KEY.goals, { calories:0, protein:0, carbs:0, fat:0 });
+}
+function getRecords(date){
+  const all = lsLoad(LS_KEY.records, {});
+  return all[date] || [];
+}
+function setRecords(date, list){
+  const all = lsLoad(LS_KEY.records, {});
+  all[date] = list;
+  lsSave(LS_KEY.records, all);
+}
+/** 某日汇总：热量/蛋白/碳水/脂肪 合计 */
+function daySummary(date){
+  return getRecords(date).reduce((s, r) => {
+    s.calories += +r.calories || 0;
+    s.protein  += +r.protein  || 0;
+    s.carbs    += +r.carbs    || 0;
+    s.fat      += +r.fat      || 0;
+    return s;
+  }, { calories:0, protein:0, carbs:0, fat:0 });
+}
+
+/* ============================================================
+   六、DOM 引用
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const els = {
+  dateInput: $('dateInput'), prevDay: $('prevDay'), nextDay: $('nextDay'),
+  todayBtn: $('todayBtn'), weekday: $('weekday'),
+  goalForm: $('goalForm'), goalCal: $('goalCal'), goalPro: $('goalPro'),
+  goalCar: $('goalCar'), goalFat: $('goalFat'),
+  progressArea: $('progressArea'),
+  foodForm: $('foodForm'), fName: $('fName'), fAmount: $('fAmount'),
+  fUnit: $('fUnit'), fUnitText: $('fUnitText'), fCal: $('fCal'),
+  fPro: $('fPro'), fCar: $('fCar'), fFat: $('fFat'),
+  foodSubmitBtn: $('foodSubmitBtn'), cancelEditBtn: $('cancelEditBtn'), editBadge: $('editBadge'),
+  presetGrid: $('presetGrid'), addPresetBtn: $('addPresetBtn'), inlinePreset: $('inlinePreset'),
+  npName: $('npName'), npAmount: $('npAmount'), npUnit: $('npUnit'),
+  npCal: $('npCal'), npPro: $('npPro'), npCar: $('npCar'), npFat: $('npFat'),
+  npOk: $('npOk'), npCancel: $('npCancel'),
+  summaryGrid: $('summaryGrid'), macroSplit: $('macroSplit'),
+  noteInput: $('noteInput'), recordList: $('recordList'), recCount: $('recCount'),
+  clearDayBtn: $('clearDayBtn'), dateTitle: $('dateTitle'),
+  modalMask: $('modalMask'), modalTitle: $('modalTitle'), modalMsg: $('modalMsg'),
+  modalOk: $('modalOk'), modalCancel: $('modalCancel'),
+  toast: $('toast'), exportTxt: $('exportTxt'), exportCsv: $('exportCsv')
+};
+
+/* ============================================================
+   七、Toast 轻提示
+   ============================================================ */
+let toastTimer = null;
+function toast(msg){
+  els.toast.textContent = msg;
+  els.toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2200);
+}
+
+/* ============================================================
+   八、确认弹窗
+   ============================================================ */
+let modalCallback = null;
+function showConfirm({ title, message, okText = '确定', danger = true, onOk }){
+  els.modalTitle.textContent = title;
+  els.modalMsg.textContent = message;
+  els.modalOk.textContent = okText;
+  els.modalOk.className = 'm-ok' + (danger ? '' : ' green');
+  modalCallback = onOk;
+  els.modalMask.classList.add('show');
+}
+function hideModal(){
+  els.modalMask.classList.remove('show');
+  modalCallback = null;
+}
+els.modalCancel.addEventListener('click', hideModal);
+els.modalMask.addEventListener('click', e => { if(e.target === els.modalMask) hideModal(); });
+els.modalOk.addEventListener('click', () => {
+  const cb = modalCallback;
+  hideModal();
+  if(cb) cb();
+});
+
+/* ============================================================
+   九、渲染：目标进度条
+   ============================================================ */
+const PROG_META = [
+  { key:'calories', label:'热量',   unit:'kcal', color:'var(--green)' },
+  { key:'protein',  label:'蛋白质', unit:'g',    color:'var(--orange)' },
+  { key:'carbs',    label:'碳水',   unit:'g',    color:'var(--blue)' },
+  { key:'fat',      label:'脂肪',   unit:'g',    color:'var(--gold)' }
+];
+
+function renderProgress(){
+  const goals = getGoals();
+  const sum   = daySummary(currentDate);
+  const hasGoal = goals.calories > 0 || goals.protein > 0 || goals.carbs > 0 || goals.fat > 0;
+
+  if(!hasGoal){
+    els.progressArea.innerHTML =
+      '<div class="goal-unset">尚未设置目标 · 在上方填写每日目标后，这里会展示摄入进度</div>';
+    return;
+  }
+
+  els.progressArea.innerHTML = PROG_META.map(m => {
+    const goal = +goals[m.key] || 0;
+    const val  = +sum[m.key]   || 0;
+    if(goal <= 0){
+      return (
+        '<div class="prog-item">' +
+          '<div class="prog-head"><span class="p-name">' + m.label + '</span>' +
+          '<span class="p-val"><b>' + round2(val) + '</b> <span class="p-goal">/ 未设置 ' + m.unit + '</span></span></div>' +
+          '<div class="bar"><i style="width:0"></i></div>' +
+          '<div class="prog-foot">未设置 ' + m.label + ' 目标，仅记录已摄入</div>' +
+        '</div>'
+      );
+    }
+    const over  = val > goal;
+    const pct   = Math.min(val / goal * 100, 100);
+    const color = over ? 'var(--red)' : m.color;
+    const rest  = round2(goal - val);
+    return (
+      '<div class="prog-item">' +
+        '<div class="prog-head"><span class="p-name">' + m.label + '</span>' +
+        '<span class="p-val"><b>' + round2(val) + '</b> / <span class="p-goal">' + goal + ' ' + m.unit + '</span></span></div>' +
+        '<div class="bar' + (over ? ' over' : '') + '"><i style="width:' + pct.toFixed(2) + '%;background:' + color + '"></i></div>' +
+        '<div class="prog-foot">' + (over
+          ? '<b class="over">已超目标 ' + (-rest) + ' ' + m.unit + '</b>'
+          : '<b class="ok">剩余 ' + rest + ' ' + m.unit + '</b>') +
+          ' · 完成 ' + Math.round(val / goal * 100) + '%</div>' +
+      '</div>'
+    );
+  }).join('');
+}
+
+/* ============================================================
+   十、渲染：当日汇总卡片 + 宏量占比
+   ============================================================ */
+const SUM_META = [
+  { key:'calories', label:'热量',   unit:'kcal', cls:'cal', icon:'<path d="M12 2c1.5 4-1 5.5-1 8.5a4.5 4.5 0 0 0 9 1c2 2.5 2 6-.5 9-5.5 5-13.5.5-13.5-7C6 9.5 9 6 12 2z"/>' },
+  { key:'protein',  label:'蛋白质', unit:'g',    cls:'pro', icon:'<path d="M5 9v6M19 9v6M8 10v4M16 10v4M10 7.5v9M14 7.5v9"/>' },
+  { key:'carbs',    label:'碳水',   unit:'g',    cls:'car', icon:'<ellipse cx="8" cy="12" rx="3" ry="5"/><ellipse cx="16" cy="12" rx="3" ry="5"/>' },
+  { key:'fat',      label:'脂肪',   unit:'g',    cls:'fat', icon:'<path d="M12 3c4.5 5.5 6.5 8.5 6.5 11.5a6.5 6.5 0 1 1-13 0C5.5 11.5 7.5 8.5 12 3z"/>' }
+];
+
+function renderSummary(){
+  const goals = getGoals();
+  const sum   = daySummary(currentDate);
+
+  els.summaryGrid.innerHTML = SUM_META.map(m => {
+    const val  = +sum[m.key] || 0;
+    const goal = +goals[m.key] || 0;
+    let restHtml = '';
+    if(goal > 0){
+      const rest = round2(goal - val);
+      restHtml = rest >= 0
+        ? '<div class="s-rest ok">剩 ' + rest + ' ' + m.unit + '</div>'
+        : '<div class="s-rest over">超 ' + (-rest) + ' ' + m.unit + '</div>';
+    } else {
+      restHtml = '<div class="s-rest" style="color:var(--text-3)">目标未设置</div>';
+    }
+    return (
+      '<div class="sum-box ' + m.cls + '">' +
+        '<div class="s-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + m.icon + '</svg>' + m.label + '</div>' +
+        '<div class="s-val">' + round2(val) + '<small>' + m.unit + '</small></div>' +
+        restHtml +
+      '</div>'
+    );
+  }).join('');
+
+  // 宏量供能占比：蛋白 4 / 碳水 4 / 脂肪 9 kcal 每克
+  const pCal = sum.protein * 4, cCal = sum.carbs * 4, fCal = sum.fat * 9;
+  const total = pCal + cCal + fCal;
+  if(total <= 0){
+    els.macroSplit.hidden = true;
+  } else {
+    els.macroSplit.innerHTML =
+      '<span class="m-label">宏量供能占比</span>' +
+      '<span class="m-chip"><span class="dot" style="background:var(--orange)"></span>蛋白质 <b>' + Math.round(pCal / total * 100) + '%</b></span>' +
+      '<span class="m-chip"><span class="dot" style="background:var(--blue)"></span>碳水 <b>' + Math.round(cCal / total * 100) + '%</b></span>' +
+      '<span class="m-chip"><span class="dot" style="background:var(--gold)"></span>脂肪 <b>' + Math.round(fCal / total * 100) + '%</b></span>';
+    els.macroSplit.hidden = false;
+  }
+}
+
+/* ============================================================
+   十一、食物表单：预设缩放 / 添加 / 编辑
+   ============================================================ */
+function setFormValues(v){
+  els.fName.value = v.name || '';
+  els.fAmount.value = v.amount ?? '';
+  els.fUnit.value = v.unit || 'g';
+  els.fUnitText.textContent = v.unit || 'g';
+  els.fCal.value = v.calories ?? '';
+  els.fPro.value = v.protein ?? '';
+  els.fCar.value = v.carbs ?? '';
+  els.fFat.value = v.fat ?? '';
+}
+function resetForm(){
+  editingId = null;
+  presetScale = null;
+  setFormValues({});
+  els.foodSubmitBtn.textContent = '添加记录';
+  els.cancelEditBtn.style.display = 'none';
+  els.editBadge.textContent = '';
+  els.fName.focus();
+}
+/** 点击预设：填入表单，并记录缩放基准；修改份量时营养按比例换算 */
+function applyPreset(p){
+  editingId = null;             // 退出编辑模式，避免覆盖原记录
+  presetScale = { amount: +p.amount || 1, base: { calories:p.calories, protein:p.protein, carbs:p.carbs, fat:p.fat } };
+  setFormValues(p);
+  els.foodSubmitBtn.textContent = '添加记录';
+  els.cancelEditBtn.style.display = 'none';
+  els.editBadge.textContent = '';
+  toast('已填入「' + p.name + '」，可修改份量');
+  els.fAmount.focus();
+}
+/** 份量变化时按基准比例重算营养 */
+function recalcPresetScale(){
+  if(!presetScale) return;
+  const k = (+els.fAmount.value || 0) / presetScale.amount;
+  els.fCal.value = round2(presetScale.base.calories * k);
+  els.fPro.value = round2(presetScale.base.protein * k);
+  els.fCar.value = round2(presetScale.base.carbs * k);
+  els.fFat.value = round2(presetScale.base.fat * k);
+}
+/* 用户手动改了任一营养字段 → 停止自动缩放 */
+[els.fCal, els.fPro, els.fCar, els.fFat].forEach(el => {
+  el.addEventListener('input', () => { presetScale = null; });
+});
+els.fAmount.addEventListener('input', recalcPresetScale);
+els.fUnit.addEventListener('input', () => { els.fUnitText.textContent = els.fUnit.value.trim() || 'g'; });
+
+els.foodForm.addEventListener('submit', e => {
+  e.preventDefault();
+  const name = els.fName.value.trim();
+  if(!name){ toast('请填写食物名称'); els.fName.focus(); return; }
+
+  const item = {
+    id: editingId || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+    name: name,
+    amount: +els.fAmount.value || 0,
+    unit: els.fUnit.value.trim() || 'g',
+    calories: +els.fCal.value || 0,
+    protein: +els.fPro.value || 0,
+    carbs: +els.fCar.value || 0,
+    fat: +els.fFat.value || 0,
+    time: fmtTime(new Date())
+  };
+
+  const list = getRecords(currentDate);
+  if(editingId){
+    const i = list.findIndex(x => x.id === editingId);
+    if(i > -1){ item.time = list[i].time || item.time; list[i] = item; }
+    toast('已更新记录');
+  } else {
+    list.push(item);
+    toast('已添加：' + name);
+  }
+  setRecords(currentDate, list);
+  resetForm();
+  renderAll();
+});
+
+els.cancelEditBtn.addEventListener('click', () => { resetForm(); renderAll(); });
+
+/* ============================================================
+   十二、快捷预设库渲染
+   ============================================================ */
+function renderPresets(){
+  const all = [...BUILTIN_PRESETS, ...customPresets];
+  if(!all.length){
+    els.presetGrid.innerHTML = '<div class="rec-empty" style="grid-column:1/-1">暂无食材，点击右上角「自定义食材」添加</div>';
+    return;
+  }
+  els.presetGrid.innerHTML = all.map((p, i) => {
+    const isCustom = i >= BUILTIN_PRESETS.length;
+    return (
+      '<button type="button" class="preset-item" data-idx="' + i + '" title="点击填入">' +
+        '<span class="p-name">' + esc(p.name) + '</span>' +
+        '<span class="p-meta">' + p.amount + p.unit + ' · ' + round2(p.calories) + 'kcal</span>' +
+        (isCustom ? '<span class="p-del" data-idx="' + i + '" title="删除此食材">×</span>' : '') +
+      '</button>'
+    );
+  }).join('');
+}
+els.presetGrid.addEventListener('click', e => {
+  const del = e.target.closest('.p-del');
+  if(del){
+    const idx = +del.dataset.idx - BUILTIN_PRESETS.length;
+    const p = customPresets[idx];
+    if(!p) return;
+    showConfirm({
+      title: '删除食材',
+      message: '确定从食材库删除「' + p.name + '」吗？',
+      okText: '删除',
+      onOk: () => { customPresets.splice(idx, 1); lsSave(LS_KEY.presets, customPresets); renderPresets(); toast('已删除'); }
+    });
+    return;
+  }
+  const btn = e.target.closest('.preset-item');
+  if(btn){
+    const all = [...BUILTIN_PRESETS, ...customPresets];
+    applyPreset(all[+btn.dataset.idx]);
+  }
+});
+
+/* 自定义食材：内联表单 */
+els.addPresetBtn.addEventListener('click', () => {
+  const show = els.inlinePreset.classList.toggle('show');
+  els.addPresetBtn.textContent = show ? '收起' : '＋ 自定义食材';
+  if(show) els.npName.focus();
+});
+els.npCancel.addEventListener('click', () => {
+  els.inlinePreset.classList.remove('show');
+  els.addPresetBtn.textContent = '＋ 自定义食材';
+});
+els.npOk.addEventListener('click', () => {
+  const name = els.npName.value.trim();
+  if(!name){ toast('请填写食材名称'); els.npName.focus(); return; }
+  customPresets.push({
+    name: name,
+    amount: +els.npAmount.value || 100,
+    unit: els.npUnit.value.trim() || 'g',
+    calories: +els.npCal.value || 0,
+    protein: +els.npPro.value || 0,
+    carbs: +els.npCar.value || 0,
+    fat: +els.npFat.value || 0
+  });
+  lsSave(LS_KEY.presets, customPresets);
+  els.npName.value = ''; els.npCal.value = ''; els.npPro.value = ''; els.npCar.value = ''; els.npFat.value = '';
+  els.inlinePreset.classList.remove('show');
+  els.addPresetBtn.textContent = '＋ 自定义食材';
+  renderPresets();
+  toast('已保存到食材库');
+});
+
+/* ============================================================
+   十三、渲染：日期导航
+   ============================================================ */
+function renderDateNav(){
+  els.dateInput.value = currentDate;
+  els.weekday.textContent = weekdayCN(currentDate);
+  els.todayBtn.hidden = currentDate === todayStr();
+  const d = new Date(currentDate + 'T00:00:00');
+  els.dateTitle.textContent = d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日 · ' + weekdayCN(currentDate);
+}
+els.prevDay.addEventListener('click', () => { currentDate = shiftDate(currentDate, -1); renderAll(); });
+els.nextDay.addEventListener('click', () => { currentDate = shiftDate(currentDate, 1); renderAll(); });
+els.todayBtn.addEventListener('click', () => { currentDate = todayStr(); renderAll(); });
+els.dateInput.addEventListener('change', () => {
+  if(els.dateInput.value){ currentDate = els.dateInput.value; renderAll(); }
+});
+
+/* ============================================================
+   十四、渲染：当日记录列表
+   ============================================================ */
+function renderRecords(){
+  const list = getRecords(currentDate);
+  els.recCount.textContent = list.length ? list.length + ' 条' : '';
+
+  if(!list.length){
+    els.recordList.innerHTML =
+      '<li class="rec-empty"><b>今天还没有记录</b>从上方食材库点击添加，或手动录入第一餐</li>';
+    return;
+  }
+
+  els.recordList.innerHTML = list.map(r => {
+    const id = r.id;
+    return (
+      '<li class="rec-row">' +
+        '<div class="c-name">' + esc(r.name) + '<span class="c-time">' + esc(r.time || '') + '</span></div>' +
+        '<div class="c-amt">' + (round2(r.amount) || 0) + ' ' + esc(r.unit || 'g') + '</div>' +
+        '<div class="c-nut n-cal" data-label="热量"><b>' + round2(r.calories) + '</b> <small>kcal</small></div>' +
+        '<div class="c-nut n-pro" data-label="蛋白质"><b>' + round2(r.protein) + '</b> <small>g</small></div>' +
+        '<div class="c-nut n-car" data-label="碳水"><b>' + round2(r.carbs) + '</b> <small>g</small></div>' +
+        '<div class="c-nut n-fat" data-label="脂肪"><b>' + round2(r.fat) + '</b> <small>g</small></div>' +
+        '<div class="c-ops">' +
+          '<button type="button" class="edit" data-act="edit" data-id="' + id + '">编辑</button>' +
+          '<button type="button" class="del" data-act="del" data-id="' + id + '">删除</button>' +
+        '</div>' +
+      '</li>'
+    );
+  }).join('');
+}
+
+/* 记录列表事件委托：编辑 / 删除 */
+els.recordList.addEventListener('click', e => {
+  const btn = e.target.closest('[data-act]');
+  if(!btn) return;
+  const list = getRecords(currentDate);
+  const rec  = list.find(x => x.id === btn.dataset.id);
+  if(!rec) return;
+
+  if(btn.dataset.act === 'edit'){
+    editingId = rec.id;
+    presetScale = null;
+    setFormValues(rec);
+    els.foodSubmitBtn.textContent = '保存修改';
+    els.cancelEditBtn.style.display = 'block';
+    els.editBadge.textContent = '正在编辑：' + rec.name;
+    els.fName.scrollIntoView({ behavior:'smooth', block:'center' });
+    els.fName.focus();
+  } else if(btn.dataset.act === 'del'){
+    showConfirm({
+      title: '删除记录',
+      message: '确定删除「' + rec.name + '」这条记录吗？',
+      okText: '删除',
+      onOk: () => {
+        const i = list.findIndex(x => x.id === rec.id);
+        if(i > -1){
+          list.splice(i, 1);
+          setRecords(currentDate, list);
+          if(editingId === rec.id) resetForm();
+          renderAll();
+          toast('已删除');
+        }
+      }
+    });
+  }
+});
+
+/* 清空当日 */
+els.clearDayBtn.addEventListener('click', () => {
+  const list = getRecords(currentDate);
+  if(!list.length){ toast('当天没有记录'); return; }
+  showConfirm({
+    title: '清空当日记录',
+    message: '确定清空 ' + currentDate + ' 的全部 ' + list.length + ' 条记录吗？此操作不可恢复。',
+    okText: '全部清空',
+    onOk: () => {
+      setRecords(currentDate, []);
+      if(editingId) resetForm();
+      renderAll();
+      toast('已清空当日记录');
+    }
+  });
+});
+
+/* ============================================================
+   十五、训练备注（防抖自动保存）
+   ============================================================ */
+function loadNote(){
+  const notes = lsLoad(LS_KEY.notes, {});
+  els.noteInput.value = notes[currentDate] || '';
+}
+els.noteInput.addEventListener('input', () => {
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(() => {
+    const notes = lsLoad(LS_KEY.notes, {});
+    notes[currentDate] = els.noteInput.value.trim();
+    lsSave(LS_KEY.notes, notes);
+  }, 500);
+});
+
+/* ============================================================
+   十六、数据导出：文本 / CSV
+   ============================================================ */
+function exportText(){
+  const list = getRecords(currentDate);
+  if(!list.length){ toast('当天没有记录可导出'); return; }
+  const goals = getGoals();
+  const sum   = daySummary(currentDate);
+  const d = new Date(currentDate + 'T00:00:00');
+  const notes = lsLoad(LS_KEY.notes, {})[currentDate] || '';
+
+  let lines = [];
+  lines.push('【健身营养记录】' + d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日 ' + weekdayCN(currentDate));
+  if(notes) lines.push('训练备注：' + notes);
+  lines.push('----------------------------------------');
+  list.forEach((r, i) => {
+    lines.push((i+1) + '. ' + r.name + '  ' + (round2(r.amount)||0) + r.unit +
+      '  |  ' + round2(r.calories) + 'kcal  |  蛋白 ' + round2(r.protein) + 'g  碳水 ' + round2(r.carbs) + 'g  脂肪 ' + round2(r.fat) + 'g' +
+      (r.time ? '  (' + r.time + ')' : ''));
+  });
+  lines.push('----------------------------------------');
+  lines.push('合计：热量 ' + round2(sum.calories) + ' kcal | 蛋白质 ' + round2(sum.protein) + 'g | 碳水 ' + round2(sum.carbs) + 'g | 脂肪 ' + round2(sum.fat) + 'g');
+  if(goals.calories > 0){
+    lines.push('目标：热量 ' + goals.calories + ' kcal | 蛋白质 ' + goals.protein + 'g | 碳水 ' + goals.carbs + 'g | 脂肪 ' + goals.fat + 'g');
+    lines.push('剩余：热量 ' + round2(goals.calories - sum.calories) + ' kcal | 蛋白质 ' + round2(goals.protein - sum.protein) + 'g | 碳水 ' + round2(goals.carbs - sum.carbs) + 'g | 脂肪 ' + round2(goals.fat - sum.fat) + 'g');
+  }
+  downloadFile('营养记录_' + currentDate + '.txt', lines.join('\n'), 'text/plain;charset=utf-8');
+  toast('已导出文本');
+}
+
+function exportCsv(){
+  const list = getRecords(currentDate);
+  if(!list.length){ toast('当天没有记录可导出'); return; }
+  const sum = daySummary(currentDate);
+  const csvEscape = v => {
+    v = String(v ?? '');
+    return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  };
+  const rows = [
+    ['日期', '时间', '食物名称', '份量', '单位', '热量(kcal)', '蛋白质(g)', '碳水(g)', '脂肪(g)'].map(csvEscape).join(','),
+    ...list.map(r => [currentDate, r.time || '', r.name, round2(r.amount)||0, r.unit || 'g', round2(r.calories), round2(r.protein), round2(r.carbs), round2(r.fat)].map(csvEscape).join(',')),
+    ['', '', '合计', '', '', round2(sum.calories), round2(sum.protein), round2(sum.carbs), round2(sum.fat)].map(csvEscape).join(',')
+  ];
+  // 加 BOM，避免 Excel 打开中文乱码
+  downloadFile('营养记录_' + currentDate + '.csv', '\ufeff' + rows.join('\r\n'), 'text/csv;charset=utf-8');
+  toast('已导出 CSV');
+}
+
+function downloadFile(filename, content, mime){
+  const blob = new Blob([content], { type:mime });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+els.exportTxt.addEventListener('click', exportText);
+els.exportCsv.addEventListener('click', exportCsv);
+
+/* ============================================================
+   十七、整体渲染 + 初始化
+   ============================================================ */
+function renderAll(){
+  renderDateNav();
+  renderProgress();
+  renderSummary();
+  renderRecords();
+  renderPresets();
+  loadNote();
+}
+
+/* 数字输入只允许数字 */
+[els.goalCal, els.goalPro, els.goalCar, els.goalFat,
+ els.fAmount, els.fCal, els.fPro, els.fCar, els.fFat,
+ els.npAmount, els.npCal, els.npPro, els.npCar, els.npFat].forEach(numOnly);
+
+/* 目标保存 */
+els.goalForm.addEventListener('submit', e => {
+  e.preventDefault();
+  lsSave(LS_KEY.goals, {
+    calories: +els.goalCal.value || 0,
+    protein:  +els.goalPro.value || 0,
+    carbs:    +els.goalCar.value || 0,
+    fat:      +els.goalFat.value || 0
+  });
+  renderProgress();
+  renderSummary();
+  toast('目标已保存');
+});
+
+/* 初始化：回填已保存的目标 + 渲染 */
+(function init(){
+  const g = getGoals();
+  if(g.calories || g.protein || g.carbs || g.fat){
+    els.goalCal.value = g.calories || '';
+    els.goalPro.value = g.protein || '';
+    els.goalCar.value = g.carbs || '';
+    els.goalFat.value = g.fat || '';
+  }
+  renderAll();
+})();
+</script>
+</body>
+</html>
